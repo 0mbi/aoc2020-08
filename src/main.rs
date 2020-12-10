@@ -7,34 +7,25 @@ use nom::alt;
 use nom::combinator::rest;
 
 #[derive(Debug)]
-enum STMT {
+pub enum Stmt {
     NOP,
-    ACC,
-    JMP,
     ERR,
+    ACC(i32),
+    JMP(i32),
 }
 
-#[derive(Debug)]
-pub struct Stmt {
-    mnem: STMT,
-    param: i32,
-}
 
 fn make_stmt(mnem: &[u8], sign: &[u8], param_str: &[u8]) -> Stmt {
     let mut param = String::from_utf8_lossy(param_str).parse::<i32>().unwrap();
     if sign[0] == b'-' {
         param = param * -1;
     }
-    let stmt_enum = match mnem {
-        b"nop" => STMT::NOP,
-        b"jmp" => STMT::JMP,
-        b"acc" => STMT::ACC,
-        _ => STMT::ERR
+    return match mnem {
+        b"jmp" => Stmt::JMP(param),
+        b"acc" => Stmt::ACC(param),
+        b"nop" => Stmt::NOP,
+        _ => Stmt::ERR
     };
-    Stmt {
-        mnem: stmt_enum,
-        param: param,
-    }
 }
 
 named!(#[inline], pub parse_stmt<Stmt>,
@@ -62,21 +53,21 @@ fn run_stmts(stmts: Vec<Stmt>) -> i32 {
     while !lines_visited[idx] {
         lines_visited[idx] = true;
         match stmts[idx] {
-            Stmt {mnem: STMT::JMP, param} => {
+            Stmt::JMP(param) => {
                 if param > 0 {
                     idx = idx + param as usize
                 } else {
                     idx = idx - (-1*param) as usize;
                 }
             },
-            Stmt {mnem: STMT::ACC, param} => {
+            Stmt::ACC(param) => {
                 acc = acc + param;
                 idx = idx + 1;
             },
-            Stmt {mnem: STMT::NOP, param: _} => {
+            Stmt::NOP => {
                 idx = idx + 1;
             },
-            Stmt {mnem: STMT::ERR, param: _} => {
+            Stmt::ERR => {
                 panic!("error statement occured")
             },
         }
